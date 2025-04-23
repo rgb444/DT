@@ -1,0 +1,113 @@
+# === Step 1: Import Required Libraries ===
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# === Step 2: Load Dataset ===
+df = pd.read_csv("adult.csv")  # Make sure the file is in your working directory
+
+# === Step 3: Clean Column Names ===
+# Convert to lowercase and replace '-' with '_' for cleaner code
+df.columns = [col.strip().replace('-', '_').lower() for col in df.columns]
+
+# === Step 4: Initial Data Overview ===
+print("First 5 rows:")
+print(df.head())
+
+print("\nDataset Info:")
+print(df.info())
+
+# === Step 5: Check for Missing Values ===
+# In this dataset, missing values are denoted by '?'
+print("\nMissing Values Count:")
+print(df.isin(['?']).sum())
+
+# === Step 6: Handle Missing Values ===
+# Replace '?' with NaN and drop rows containing missing values
+df.replace(' ?', np.nan, inplace=True)
+df.dropna(inplace=True)
+
+print("\nMissing values after cleanup:")
+print(df.isnull().sum())
+
+# === Step 7: Exploratory Data Analysis (EDA) ===
+
+# Distribution of income classes
+sns.countplot(data=df, x='income')
+plt.title("Income Distribution")
+plt.show()
+
+# Age distribution
+sns.histplot(df['age'], bins=30, kde=True)
+plt.title("Age Distribution")
+plt.show()
+
+# Education level count
+plt.figure(figsize=(10, 5))
+sns.countplot(y='education', data=df, order=df['education'].value_counts().index)
+plt.title("Education Level Distribution")
+plt.show()
+
+# Boxplot for age vs income
+sns.boxplot(x='income', y='age', data=df)
+plt.title("Age vs Income")
+plt.show()
+
+# === Step 8: Encode Categorical Features ===
+cat_cols = df.select_dtypes(include='object').columns
+
+label_encoders = {}
+for col in cat_cols:
+    le = LabelEncoder()
+    df[col] = le.fit_transform(df[col])
+    label_encoders[col] = le  # Save encoders in case inverse_transform is needed
+
+# === Step 9: Feature and Target Selection ===
+X = df.drop('income', axis=1)  # Feature set
+y = df['income']               # Target variable (0 for <=50K, 1 for >50K)
+
+# === Step 10: Train-Test Split ===
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42
+)
+
+# === Step 11: Train the Decision Tree Classifier ===
+clf = DecisionTreeClassifier(
+    max_depth=5,
+    min_samples_leaf=10,
+    random_state=42
+)
+clf.fit(X_train, y_train)
+
+# === Step 12: Make Predictions and Evaluate ===
+y_pred = clf.predict(X_test)
+
+print("\nModel Accuracy:", accuracy_score(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+# Confusion matrix
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=['<=50K', '>50K'], yticklabels=['<=50K', '>50K'])
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.show()
+
+# === Step 13: Visualize the Decision Tree ===
+plt.figure(figsize=(20, 10))
+plot_tree(
+    clf,
+    filled=True,
+    feature_names=X.columns,
+    class_names=['<=50K', '>50K'],
+    rounded=True
+)
+plt.title("Decision Tree - Adult Income Dataset")
+plt.show()
