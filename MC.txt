@@ -1,0 +1,118 @@
+# === Import Required Libraries ===
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+
+# === Step 1: Load Dataset ===
+file_path = 'mallCustomers.csv'  # Make sure this file is in your working directory
+df = pd.read_csv(file_path)
+
+# === Step 2: Clean Column Names ===
+# Replace spaces with underscores and convert all column names to lowercase
+df.columns = [col.strip().replace(' ', '_').lower() for col in df.columns]
+
+# === Step 3: Exploratory Data Analysis (EDA) ===
+
+# Display first few rows to get a sense of the data
+print("Dataset Preview:")
+print(df.head())
+
+# Check for missing values in the dataset
+print("\nMissing Values:")
+print(df.isnull().sum())
+
+# Show summary statistics for numerical columns
+print("\nSummary Statistics:")
+print(df.describe())
+
+# Plot histograms for numerical features (excluding 'customerid')
+df.drop('customerid', axis=1).hist(bins=15, figsize=(10, 6))
+plt.suptitle("Feature Distributions")
+plt.tight_layout()
+plt.show()
+
+# Plot count of customers by gender
+sns.countplot(data=df, x='genre')
+plt.title("Genre Distribution")
+plt.show()
+
+# === Step 4: Encode Categorical Variables ===
+# Convert 'genre' column to numerical using LabelEncoder
+# This is required for models that don't handle categorical strings
+le_genre = LabelEncoder()
+df['genre'] = le_genre.fit_transform(df['genre'])  # Female=0, Male=1
+
+# === Step 5: Correlation Heatmap ===
+# Only include numeric columns for correlation analysis
+numeric_df = df.select_dtypes(include=[np.number])
+plt.figure(figsize=(6, 4))
+sns.heatmap(numeric_df.corr(), annot=True, cmap='coolwarm')
+plt.title("Feature Correlation Heatmap")
+plt.show()
+
+# === Step 6: Create Target Classes from Spending Score ===
+# Categorize spending score into three classes: Low (0), Medium (1), High (2)
+df['spending_category'] = pd.cut(
+    df['spending_score_(1-100)'],
+    bins=[-1, 33, 66, 100],
+    labels=[0, 1, 2]
+).astype(int)
+
+# === Step 7: Feature and Target Selection ===
+# Input features: gender, age, and annual income
+# Target variable: categorized spending score
+X = df[['genre', 'age', 'annual_income_(k$)']]
+y = df['spending_category']
+
+# === Step 8: Train-Test Split ===
+# Splitting the dataset into training and testing sets (70% train, 30% test)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42)
+
+# === Step 9: Train Decision Tree Classifier ===
+# Initialize the Decision Tree Classifier with hyperparameters
+clf = DecisionTreeClassifier(
+    random_state=42,
+    max_depth=3,               # Max depth of tree
+    min_samples_split=4,       # Minimum samples to split a node
+    min_samples_leaf=2         # Minimum samples at a leaf node
+)
+
+# Fit the model on training data
+clf.fit(X_train, y_train)
+
+# === Step 10: Model Evaluation ===
+# Predict the labels for test set
+y_pred = clf.predict(X_test)
+
+# Print accuracy and detailed classification report
+print("\nAccuracy Score:", accuracy_score(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+# Confusion matrix heatmap
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(6, 4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=['Low', 'Medium', 'High'],
+            yticklabels=['Low', 'Medium', 'High'])
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.show()
+
+# === Step 11: Visualize the Decision Tree ===
+# Plot the structure of the trained decision tree
+plt.figure(figsize=(12, 8))
+plot_tree(clf,
+          filled=True,
+          feature_names=X.columns,
+          class_names=['Low', 'Medium', 'High'],
+          rounded=True)
+plt.title("Decision Tree Visualization")
+plt.show()
